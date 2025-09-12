@@ -1,0 +1,10 @@
+flask==3.0.3
+gunicorn==22.0.0
+requests==2.31.0
+
+# Datadog APM
+ddtrace
+
+# Development dependencies (optional)
+# pytest==7.4.0
+# pytest-flask==1.2.0

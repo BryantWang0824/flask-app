@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block title %}APM Demo Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="jumbotron bg-gradient bg-primary text-white p-4 rounded mb-4">
+            <h1 class="display-4">
+                <i class="fas fa-chart-line me-3"></i>APM Demo Dashboard
+            </h1>
+            <p class="lead">
+                Comprehensive Application Performance Monitoring demonstration with various endpoints 
+                for testing latency, errors, resource usage, and distributed tracing.
+            </p>
+            <hr class="my-4">
+            <p>
+                Click on any endpoint below to test different APM scenarios. Monitor the responses and observe 
+                how your APM tool tracks performance metrics, errors, and distributed traces.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- API Statistics -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>API Statistics
+                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="refreshStats()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="stats-content">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API Endpoints Grid -->
+<div class="row">
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card endpoint-card h-100" onclick="callEndpoint('/api/fast', 'Fast Response')">
+            <div class="card-header bg-success text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-rocket me-2"></i>Fast Response
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Quick response endpoint (~10ms) for baseline performance measurement.</p>
+                <small class="text-muted">
+                    <i class="fas fa-clock me-1"></i>Expected: ~10ms
+                    <br><i class="fas fa-tag me-1"></i>APM: Baseline performance
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card endpoint-card h-100" onclick="callEndpoint('/api/slow', 'Slow Response')">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-hourglass-half me-2"></i>Slow Response
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Intentionally slow endpoint (1-3s delay) for latency monitoring.</p>
+                <small class="text-muted">
+                    <i class="fas fa-clock me-1"></i>Expected: 1-3s
+                    <br><i class="fas fa-tag me-1"></i>APM: Latency tracking
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card endpoint-card h-100" onclick="callEndpoint('/api/error-random', 'Random Errors')">
+            <div class="card-header bg-danger text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Random Errors
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Randomly generates different HTTP errors (400, 404, 500, timeout).</p>
+                <small class="text-muted">
+                    <i class="fas fa-percent me-1"></i>Error Rate: ~80%
+                    <br><i class="fas fa-tag me-1"></i>APM: Error monitoring
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card endpoint-card h-100" onclick="callEndpoint('/api/memory-intensive', 'Memory Intensive')">
+            <div class="card-header bg-info text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-memory me-2"></i>Memory Intensive
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Allocates large amounts of memory for resource monitoring.</p>
+                <small class="text-muted">
+                    <i class="fas fa-database me-1"></i>Memory: ~100MB
+                    <br><i class="fas fa-tag me-1"></i>APM: Resource usage
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card endpoint-card h-100" onclick="callEndpoint('/api/cpu-intensive', 'CPU Intensive')">
+            <div class="card-header bg-dark text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-microchip me-2"></i>CPU Intensive
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Performs heavy calculations for CPU usage monitoring.</p>
+                <small class="text-muted">
+                    <i class="fas fa-calculator me-1"></i>Operations: 1M calculations
+                    <br><i class="fas fa-tag me-1"></i>APM: CPU monitoring
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card endpoint-card h-100" onclick="callEndpoint('/api/external-call', 'External API')">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-external-link-alt me-2"></i>External API Call
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Makes external HTTP requests for distributed tracing.</p>
+                <small class="text-muted">
+                    <i class="fas fa-link me-1"></i>Target: httpbin.org
+                    <br><i class="fas fa-tag me-1"></i>APM: Distributed tracing
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card endpoint-card h-100" onclick="callEndpoint('/api/database-simulation', 'Database Simulation')">
+            <div class="card-header bg-primary text-white">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-database me-2"></i>Database Simulation
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Simulates database operations with random delays and errors.</p>
+                <small class="text-muted">
+                    <i class="fas fa-clock me-1"></i>Query time: 0.1-1.5s
+                    <br><i class="fas fa-tag me-1"></i>APM: Database monitoring
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card endpoint-card h-100" onclick="callEndpoint('/api/chain-calls', 'Service Chain')">
+            <div class="card-header bg-gradient" style="background: linear-gradient(45deg, #6f42c1, #e83e8c);">
+                <h6 class="card-title mb-0 text-white">
+                    <i class="fas fa-sitemap me-2"></i>Service Chain
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="card-text">Simulates calling multiple microservices in sequence.</p>
+                <small class="text-muted">
+                    <i class="fas fa-layers me-1"></i>Services: 4 calls
+                    <br><i class="fas fa-tag me-1"></i>APM: Service dependencies
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Response Display -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-terminal me-2"></i>Response Monitor
+                </h5>
+            </div>
+            <div class="card-body response-section">
+                <div id="response-content">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-info-circle fa-2x mb-3"></i>
+                        <p>Click on any endpoint above to see the response here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let requestCount = 0;
+
+function refreshStats() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            const statsContent = document.getElementById('stats-content');
+            statsContent.innerHTML = `
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-primary">${data.total_requests}</h4>
+                            <small class="text-muted">Total Requests</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-success">${data.uptime}</h4>
+                            <small class="text-muted">Service Status</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-info">${data.available_endpoints.length}</h4>
+                            <small class="text-muted">Available Endpoints</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-warning">${requestCount}</h4>
+                            <small class="text-muted">UI Requests</small>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <small class="text-muted">Last updated: ${formatTimestamp(data.timestamp)}</small>
+            `;
+        })
+        .catch(error => {
+            document.getElementById('stats-content').innerHTML = 
+                `<div class="alert alert-danger">Error loading stats: ${error.message}</div>`;
+        });
+}
+
+function callEndpoint(url, name) {
+    requestCount++;
+    const responseContent = document.getElementById('response-content');
+    const startTime = Date.now();
+    
+    // Show loading state
+    responseContent.innerHTML = `
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm me-3" role="status"></div>
+            <strong>Calling ${name}...</strong>
+        </div>
+    `;
+    
+    makeRequest(url)
+        .then(result => {
+            const endTime = Date.now();
+            const responseTime = endTime - startTime;
+            const statusClass = result.status >= 200 && result.status < 300 ? 'success' : 'danger';
+            const statusIcon = result.status >= 200 && result.status < 300 ? 'check-circle' : 'exclamation-circle';
+            
+            responseContent.innerHTML = `
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <span class="status-indicator status-${result.status >= 200 && result.status < 300 ? 'success' : 'error'} me-2"></span>
+                            ${name} Response
+                        </h6>
+                        <div>
+                            <span class="badge bg-${statusClass}">
+                                <i class="fas fa-${statusIcon} me-1"></i>HTTP ${result.status}
+                            </span>
+                            <span class="badge bg-info ms-2">
+                                <i class="fas fa-clock me-1"></i>${responseTime}ms
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Request Details:</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>Endpoint:</strong> <code>${url}</code></li>
+                                    <li><strong>Method:</strong> <span class="badge bg-primary">GET</span></li>
+                                    <li><strong>Response Time:</strong> ${responseTime}ms</li>
+                                    <li><strong>Timestamp:</strong> ${new Date().toLocaleString()}</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Response:</h6>
+                                <pre class="bg-light p-3 rounded" style="max-height: 300px; overflow-y: auto;"><code>${JSON.stringify(result.data, null, 2)}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Show success/error toast
+            const message = result.status >= 200 && result.status < 300 
+                ? `${name} completed successfully (${responseTime}ms)`
+                : `${name} failed with status ${result.status}`;
+            const type = result.status >= 200 && result.status < 300 ? 'success' : 'danger';
+            showToast(message, type);
+        })
+        .catch(error => {
+            responseContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Request Failed</h6>
+                    <p>Error calling ${name}: ${error.message}</p>
+                </div>
+            `;
+            showToast(`Failed to call ${name}: ${error.message}`, 'danger');
+        });
+}
+
+// Load initial stats
+document.addEventListener('DOMContentLoaded', function() {
+    refreshStats();
+    // Auto-refresh stats every 30 seconds
+    setInterval(refreshStats, 30000);
+});
+</script>
+{% endblock %}

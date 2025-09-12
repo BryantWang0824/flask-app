@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+
+{% block title %}Load Testing - APM Demo{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tachometer-alt me-2"></i>Load Testing Interface
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    Generate controlled load on various endpoints to test APM monitoring capabilities.
+                    Monitor your APM dashboard while running these tests to see performance metrics in real-time.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Load Test Configuration -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-cogs me-2"></i>Test Configuration
+                </h6>
+            </div>
+            <div class="card-body">
+                <form id="loadTestForm">
+                    <div class="mb-3">
+                        <label for="endpoint" class="form-label">Target Endpoint</label>
+                        <select class="form-select" id="endpoint" required>
+                            <option value="/api/fast">Fast Response (~10ms)</option>
+                            <option value="/api/slow">Slow Response (1-3s)</option>
+                            <option value="/api/memory-intensive">Memory Intensive</option>
+                            <option value="/api/cpu-intensive">CPU Intensive</option>
+                            <option value="/api/error-random">Random Errors</option>
+                            <option value="/api/external-call">External API Call</option>
+                            <option value="/api/database-simulation">Database Simulation</option>
+                            <option value="/api/chain-calls">Service Chain</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="requests" class="form-label">Number of Requests</label>
+                        <input type="number" class="form-control" id="requests" value="10" min="1" max="100" required>
+                        <div class="form-text">Maximum 100 requests per test</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="concurrency" class="form-label">Concurrent Requests</label>
+                        <input type="number" class="form-control" id="concurrency" value="2" min="1" max="10" required>
+                        <div class="form-text">Number of parallel requests (max 10)</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="delay" class="form-label">Delay Between Batches (ms)</label>
+                        <input type="number" class="form-control" id="delay" value="100" min="0" max="5000">
+                        <div class="form-text">Delay between concurrent request batches</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary" id="startTest">
+                            <i class="fas fa-play me-2"></i>Start Load Test
+                        </button>
+                        <button type="button" class="btn btn-danger" id="stopTest" disabled>
+                            <i class="fas fa-stop me-2"></i>Stop Test
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Test Results
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="testResults">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-play-circle fa-2x mb-3"></i>
+                        <p>Configure and start a load test to see results here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Real-time Metrics -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Real-time Metrics
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-primary" id="totalRequests">0</h4>
+                            <small class="text-muted">Total Requests</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-success" id="successCount">0</h4>
+                            <small class="text-muted">Successful</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-danger" id="errorCount">0</h4>
+                            <small class="text-muted">Errors</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-info" id="avgResponseTime">0ms</h4>
+                            <small class="text-muted">Avg Response Time</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <canvas id="metricsChart" width="400" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test Log -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>Test Log
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="testLog" style="height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.9em;">
+                    <div class="text-muted">Test log will appear here...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let testRunning = false;
+let testStats = {
+    total: 0,
+    success: 0,
+    errors: 0,
+    responseTimes: []
+};
+let metricsChart;
+
+// Initialize chart
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('metricsChart').getContext('2d');
+    metricsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Response Time (ms)',
+                data: [],
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                tension: 0.1
+            }, {
+                label: 'Requests/sec',
+                data: [],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                yAxisID: 'y1',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Response Time (ms)'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Requests/sec'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+});
+
+function logMessage(message, type = 'info') {
+    const testLog = document.getElementById('testLog');
+    const timestamp = new Date().toLocaleTimeString();
+    const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+    
+    const logEntry = document.createElement('div');
+    logEntry.className = `text-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'}`;
+    logEntry.innerHTML = `[${timestamp}] ${icon} ${message}`;
+    
+    testLog.appendChild(logEntry);
+    testLog.scrollTop = testLog.scrollHeight;
+}
+
+function updateMetrics() {
+    document.getElementById('totalRequests').textContent = testStats.total;
+    document.getElementById('successCount').textContent = testStats.success;
+    document.getElementById('errorCount').textContent = testStats.errors;
+    
+    const avgTime = testStats.responseTimes.length > 0 
+        ? Math.round(testStats.responseTimes.reduce((a, b) => a + b) / testStats.responseTimes.length)
+        : 0;
+    document.getElementById('avgResponseTime').textContent = `${avgTime}ms`;
+}
+
+function updateChart(responseTime, requestsPerSec) {
+    const now = new Date().toLocaleTimeString();
+    
+    metricsChart.data.labels.push(now);
+    metricsChart.data.datasets[0].data.push(responseTime);
+    metricsChart.data.datasets[1].data.push(requestsPerSec);
+    
+    // Keep only last 20 data points
+    if (metricsChart.data.labels.length > 20) {
+        metricsChart.data.labels.shift();
+        metricsChart.data.datasets[0].data.shift();
+        metricsChart.data.datasets[1].data.shift();
+    }
+    
+    metricsChart.update('none');
+}
+
+async function runLoadTest(endpoint, totalRequests, concurrency, delay) {
+    const startTime = Date.now();
+    let completedRequests = 0;
+    let batchStartTime = Date.now();
+    
+    logMessage(`Starting load test: ${totalRequests} requests to ${endpoint} with concurrency ${concurrency}`);
+    
+    for (let i = 0; i < totalRequests; i += concurrency) {
+        if (!testRunning) {
+            logMessage('Test stopped by user', 'info');
+            break;
+        }
+        
+        const batchSize = Math.min(concurrency, totalRequests - i);
+        const promises = [];
+        
+        // Create batch of concurrent requests
+        for (let j = 0; j < batchSize; j++) {
+            promises.push(
+                makeRequest(endpoint)
+                    .then(result => {
+                        const requestTime = Date.now() - batchStartTime;
+                        testStats.total++;
+                        testStats.responseTimes.push(requestTime);
+                        
+                        if (result.status >= 200 && result.status < 300) {
+                            testStats.success++;
+                            logMessage(`Request ${testStats.total}: SUCCESS (${requestTime}ms)`, 'success');
+                        } else {
+                            testStats.errors++;
+                            logMessage(`Request ${testStats.total}: ERROR ${result.status} (${requestTime}ms)`, 'error');
+                        }
+                        
+                        return { success: result.status >= 200 && result.status < 300, time: requestTime };
+                    })
+                    .catch(error => {
+                        testStats.total++;
+                        testStats.errors++;
+                        logMessage(`Request ${testStats.total}: FAILED - ${error.message}`, 'error');
+                        return { success: false, time: 0 };
+                    })
+            );
+        }
+        
+        // Wait for batch to complete
+        batchStartTime = Date.now();
+        const results = await Promise.all(promises);
+        completedRequests += batchSize;
+        
+        // Calculate metrics
+        const batchTime = Date.now() - batchStartTime;
+        const requestsPerSec = (batchSize / batchTime) * 1000;
+        const avgResponseTime = results.reduce((sum, r) => sum + r.time, 0) / results.length;
+        
+        updateMetrics();
+        updateChart(avgResponseTime, requestsPerSec);
+        
+        // Progress update
+        const progress = Math.round((completedRequests / totalRequests) * 100);
+        logMessage(`Batch completed: ${completedRequests}/${totalRequests} (${progress}%)`);
+        
+        // Delay before next batch
+        if (i + concurrency < totalRequests && delay > 0) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+    
+    const totalTime = Date.now() - startTime;
+    const overallRps = (completedRequests / totalTime) * 1000;
+    
+    logMessage(`Load test completed: ${completedRequests} requests in ${totalTime}ms (${overallRps.toFixed(2)} RPS)`, 'success');
+    
+    // Update UI
+    document.getElementById('startTest').disabled = false;
+    document.getElementById('stopTest').disabled = true;
+    testRunning = false;
+}
+
+// Form submission
+document.getElementById('loadTestForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (testRunning) return;
+    
+    const endpoint = document.getElementById('endpoint').value;
+    const requests = parseInt(document.getElementById('requests').value);
+    const concurrency = parseInt(document.getElementById('concurrency').value);
+    const delay = parseInt(document.getElementById('delay').value);
+    
+    // Reset stats
+    testStats = { total: 0, success: 0, errors: 0, responseTimes: [] };
+    updateMetrics();
+    
+    // Clear log
+    document.getElementById('testLog').innerHTML = '';
+    
+    // Update UI
+    document.getElementById('startTest').disabled = true;
+    document.getElementById('stopTest').disabled = false;
+    testRunning = true;
+    
+    try {
+        await runLoadTest(endpoint, requests, concurrency, delay);
+    } catch (error) {
+        logMessage(`Test failed: ${error.message}`, 'error');
+        document.getElementById('startTest').disabled = false;
+        document.getElementById('stopTest').disabled = true;
+        testRunning = false;
+    }
+});
+
+// Stop test
+document.getElementById('stopTest').addEventListener('click', function() {
+    testRunning = false;
+    document.getElementById('startTest').disabled = false;
+    document.getElementById('stopTest').disabled = true;
+    logMessage('Stopping test...', 'info');
+});
+</script>
+{% endblock %}

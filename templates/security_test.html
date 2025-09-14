@@ -102,8 +102,8 @@
                         </h2>
                         <div id="xssExamples" class="accordion-collapse collapse">
                             <div class="accordion-body">
-                                <button class="btn btn-sm btn-outline-danger mb-2" onclick="setExample('xss', '<script>alert(\"XSS\")</script>')">Basic XSS Alert</button><br>
-                                <button class="btn btn-sm btn-outline-danger mb-2" onclick="setExample('xss', '<img src=x onerror=alert(\"XSS\")>')">Image XSS</button><br>
+                                <button class="btn btn-sm btn-outline-danger mb-2" onclick="setExample('xss', '&lt;script&gt;alert(\\\"XSS\\\")&lt;/script&gt;')">Basic XSS Alert</button><br>
+                                <button class="btn btn-sm btn-outline-danger mb-2" onclick="setExample('xss', '&lt;img src=x onerror=alert(\\\"XSS\\\")&gt;')">Image XSS</button><br>
                                 <button class="btn btn-sm btn-outline-danger mb-2" onclick="setExample('xss', 'javascript:alert(document.cookie)')">Cookie Theft</button>
                             </div>
                         </div>
@@ -221,7 +221,16 @@ function updateStats() {
 
 function setExample(type, payload) {
     document.getElementById('inputType').value = type;
-    document.getElementById('userInput').value = payload;
+    
+    // Decode HTML entities for XSS examples
+    const decodedPayload = payload
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/\\\"/g, '"');
+    
+    document.getElementById('userInput').value = decodedPayload;
     
     // Highlight the form
     const form = document.getElementById('securityTestForm');

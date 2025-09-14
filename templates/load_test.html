@@ -64,6 +64,12 @@
                         <div class="form-text">Delay between concurrent request batches</div>
                     </div>
                     
+                    <div class="mb-3">
+                        <label for="errorRate" class="form-label">Error Rate (%)</label>
+                        <input type="number" class="form-control" id="errorRate" value="10" min="0" max="100">
+                        <div class="form-text">Percentage of requests that should result in errors (0-100%)</div>
+                    </div>
+                    
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary" id="startTest">
                             <i class="fas fa-play me-2"></i>Start Load Test
@@ -266,12 +272,12 @@ function updateChart(responseTime, requestsPerSec) {
     metricsChart.update('none');
 }
 
-async function runLoadTest(endpoint, totalRequests, concurrency, delay) {
+async function runLoadTest(endpoint, totalRequests, concurrency, delay, errorRate) {
     const startTime = Date.now();
     let completedRequests = 0;
     let batchStartTime = Date.now();
     
-    logMessage(`Starting load test: ${totalRequests} requests to ${endpoint} with concurrency ${concurrency}`);
+    logMessage(`Starting load test: ${totalRequests} requests to ${endpoint} with concurrency ${concurrency}, error rate ${errorRate}%`);
     
     for (let i = 0; i < totalRequests; i += concurrency) {
         if (!testRunning) {
@@ -284,8 +290,13 @@ async function runLoadTest(endpoint, totalRequests, concurrency, delay) {
         
         // Create batch of concurrent requests
         for (let j = 0; j < batchSize; j++) {
-            promises.push(
-                makeRequest(endpoint)
+            // Determine if this request should be an error based on error rate
+            const shouldError = Math.random() * 100 < errorRate;
+            const requestEndpoint = shouldError ? '/api/error-random' : endpoint;
+            
+            // Create a closure to capture shouldError for this specific request
+            const makeTestRequest = (isErrorRequest) => {
+                return makeRequest(requestEndpoint)
                     .then(result => {
                         const requestTime = Date.now() - batchStartTime;
                         testStats.total++;
@@ -293,10 +304,10 @@ async function runLoadTest(endpoint, totalRequests, concurrency, delay) {
                         
                         if (result.status >= 200 && result.status < 300) {
                             testStats.success++;
-                            logMessage(`Request ${testStats.total}: SUCCESS (${requestTime}ms)`, 'success');
+                            logMessage(`Request ${testStats.total}: SUCCESS (${requestTime}ms)${isErrorRequest ? ' [Error Endpoint]' : ''}`, 'success');
                         } else {
                             testStats.errors++;
-                            logMessage(`Request ${testStats.total}: ERROR ${result.status} (${requestTime}ms)`, 'error');
+                            logMessage(`Request ${testStats.total}: ERROR ${result.status} (${requestTime}ms)${isErrorRequest ? ' [Intentional]' : ''}`, 'error');
                         }
                         
                         return { success: result.status >= 200 && result.status < 300, time: requestTime };
@@ -304,10 +315,12 @@ async function runLoadTest(endpoint, totalRequests, concurrency, delay) {
                     .catch(error => {
                         testStats.total++;
                         testStats.errors++;
-                        logMessage(`Request ${testStats.total}: FAILED - ${error.message}`, 'error');
+                        logMessage(`Request ${testStats.total}: FAILED - ${error.message}${isErrorRequest ? ' [Error Endpoint]' : ''}`, 'error');
                         return { success: false, time: 0 };
-                    })
-            );
+                    });
+            };
+            
+            promises.push(makeTestRequest(shouldError));
         }
         
         // Wait for batch to complete
@@ -354,6 +367,7 @@ document.getElementById('loadTestForm').addEventListener('submit', async functio
     const requests = parseInt(document.getElementById('requests').value);
     const concurrency = parseInt(document.getElementById('concurrency').value);
     const delay = parseInt(document.getElementById('delay').value);
+    const errorRate = parseInt(document.getElementById('errorRate').value);
     
     // Reset stats
     testStats = { total: 0, success: 0, errors: 0, responseTimes: [] };
@@ -368,7 +382,7 @@ document.getElementById('loadTestForm').addEventListener('submit', async functio
     testRunning = true;
     
     try {
-        await runLoadTest(endpoint, requests, concurrency, delay);
+        await runLoadTest(endpoint, requests, concurrency, delay, errorRate);
     } catch (error) {
         logMessage(`Test failed: ${error.message}`, 'error');
         document.getElementById('startTest').disabled = false;

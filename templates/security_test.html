@@ -102,8 +102,8 @@
                         </h2>
                         <div id="xssExamples" class="accordion-collapse collapse">
                             <div class="accordion-body">
-                                <button class="btn btn-sm btn-outline-danger mb-2" onclick="setExample('xss', '&lt;script&gt;alert(\\\"XSS\\\")&lt;/script&gt;')">Basic XSS Alert</button><br>
-                                <button class="btn btn-sm btn-outline-danger mb-2" onclick="setExample('xss', '&lt;img src=x onerror=alert(\\\"XSS\\\")&gt;')">Image XSS</button><br>
+                                <button class="btn btn-sm btn-outline-danger mb-2" onclick="setXSSExample('basic')">Basic XSS Alert</button><br>
+                                <button class="btn btn-sm btn-outline-danger mb-2" onclick="setXSSExample('image')">Image XSS</button><br>
                                 <button class="btn btn-sm btn-outline-danger mb-2" onclick="setExample('xss', 'javascript:alert(document.cookie)')">Cookie Theft</button>
                             </div>
                         </div>
@@ -221,16 +221,30 @@ function updateStats() {
 
 function setExample(type, payload) {
     document.getElementById('inputType').value = type;
+    document.getElementById('userInput').value = payload;
     
-    // Decode HTML entities for XSS examples
-    const decodedPayload = payload
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&amp;/g, '&')
-        .replace(/\\\"/g, '"');
+    // Highlight the form
+    const form = document.getElementById('securityTestForm');
+    form.classList.add('border', 'border-warning');
+    setTimeout(() => {
+        form.classList.remove('border', 'border-warning');
+    }, 2000);
+}
+
+function setXSSExample(type) {
+    document.getElementById('inputType').value = 'xss';
     
-    document.getElementById('userInput').value = decodedPayload;
+    let payload = '';
+    switch(type) {
+        case 'basic':
+            payload = '<script>alert("XSS")</script>';
+            break;
+        case 'image':
+            payload = '<img src=x onerror=alert("XSS")>';
+            break;
+    }
+    
+    document.getElementById('userInput').value = payload;
     
     // Highlight the form
     const form = document.getElementById('securityTestForm');

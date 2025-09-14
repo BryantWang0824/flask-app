@@ -65,9 +65,9 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label for="errorRate" class="form-label">Error Rate (%)</label>
-                        <input type="number" class="form-control" id="errorRate" value="10" min="0" max="100">
-                        <div class="form-text">Percentage of requests that should result in errors (0-100%)</div>
+                        <label for="errorRate" class="form-label">Backend Error Rate (%)</label>
+                        <input type="number" class="form-control" id="errorRate" value="3" min="0" max="100">
+                        <div class="form-text">Control backend error rate for trigger_random_errors() (0-100%)</div>
                     </div>
                     
                     <div class="d-grid gap-2">
@@ -277,7 +277,21 @@ async function runLoadTest(endpoint, totalRequests, concurrency, delay, errorRat
     let completedRequests = 0;
     let batchStartTime = Date.now();
     
-    logMessage(`Starting load test: ${totalRequests} requests to ${endpoint} with concurrency ${concurrency}, error rate ${errorRate}%`);
+    logMessage(`Starting load test: ${totalRequests} requests to ${endpoint} with concurrency ${concurrency}, backend error rate ${errorRate}%`);
+    
+    // Set the global error rate for this test session
+    if (errorRate !== undefined) {
+        try {
+            await fetch('/api/set-error-rate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error_rate: errorRate })
+            });
+            logMessage(`Backend error rate set to ${errorRate}%`, 'info');
+        } catch (error) {
+            logMessage(`Failed to set backend error rate: ${error.message}`, 'error');
+        }
+    }
     
     for (let i = 0; i < totalRequests; i += concurrency) {
         if (!testRunning) {
@@ -290,13 +304,8 @@ async function runLoadTest(endpoint, totalRequests, concurrency, delay, errorRat
         
         // Create batch of concurrent requests
         for (let j = 0; j < batchSize; j++) {
-            // Determine if this request should be an error based on error rate
-            const shouldError = Math.random() * 100 < errorRate;
-            const requestEndpoint = shouldError ? '/api/error-random' : endpoint;
-            
-            // Create a closure to capture shouldError for this specific request
-            const makeTestRequest = (isErrorRequest) => {
-                return makeRequest(requestEndpoint)
+            promises.push(
+                makeRequest(endpoint)
                     .then(result => {
                         const requestTime = Date.now() - batchStartTime;
                         testStats.total++;
@@ -304,10 +313,10 @@ async function runLoadTest(endpoint, totalRequests, concurrency, delay, errorRat
                         
                         if (result.status >= 200 && result.status < 300) {
                             testStats.success++;
-                            logMessage(`Request ${testStats.total}: SUCCESS (${requestTime}ms)${isErrorRequest ? ' [Error Endpoint]' : ''}`, 'success');
+                            logMessage(`Request ${testStats.total}: SUCCESS (${requestTime}ms)`, 'success');
                         } else {
                             testStats.errors++;
-                            logMessage(`Request ${testStats.total}: ERROR ${result.status} (${requestTime}ms)${isErrorRequest ? ' [Intentional]' : ''}`, 'error');
+                            logMessage(`Request ${testStats.total}: ERROR ${result.status} (${requestTime}ms)`, 'error');
                         }
                         
                         return { success: result.status >= 200 && result.status < 300, time: requestTime };
@@ -315,12 +324,10 @@ async function runLoadTest(endpoint, totalRequests, concurrency, delay, errorRat
                     .catch(error => {
                         testStats.total++;
                         testStats.errors++;
-                        logMessage(`Request ${testStats.total}: FAILED - ${error.message}${isErrorRequest ? ' [Error Endpoint]' : ''}`, 'error');
+                        logMessage(`Request ${testStats.total}: FAILED - ${error.message}`, 'error');
                         return { success: false, time: 0 };
-                    });
-            };
-            
-            promises.push(makeTestRequest(shouldError));
+                    })
+            );
         }
         
         // Wait for batch to complete

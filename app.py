@@ -87,27 +87,36 @@ def before_request():
 # Global counter for demonstration
 request_counter = 0
 
+# Global error rate (percentage) - can be modified via API
+global_error_rate = 3.0  # Default 3% error rate
+
 def trigger_random_errors():
     """Randomly trigger various types of errors for APM demonstration"""
-    error_chance = random.random()
+    global global_error_rate
+    error_chance = random.random() * 100  # Convert to percentage
     
-    # 3% chance of various application errors
-    if error_chance < 0.01:
+    # Use configurable error rate instead of hardcoded values
+    error_threshold = global_error_rate
+    
+    if error_chance < error_threshold / 3:  # 1/3 of error rate for ValueError
         app.logger.error("Simulated ValueError occurred", extra={
             'error_type': 'ValueError', 
-            'error_category': 'application_error'
+            'error_category': 'application_error',
+            'error_rate_setting': global_error_rate
         })
         raise ValueError("Simulated application error for APM testing")
-    elif error_chance < 0.02:
+    elif error_chance < (error_threshold * 2) / 3:  # 2/3 of error rate for KeyError
         app.logger.error("Simulated KeyError occurred", extra={
             'error_type': 'KeyError', 
-            'error_category': 'application_error'
+            'error_category': 'application_error',
+            'error_rate_setting': global_error_rate
         })
         raise KeyError("missing_key_simulation")
-    elif error_chance < 0.03:
+    elif error_chance < error_threshold:  # Full error rate for TypeError
         app.logger.error("Simulated TypeError occurred", extra={
             'error_type': 'TypeError', 
-            'error_category': 'application_error'
+            'error_category': 'application_error',
+            'error_rate_setting': global_error_rate
         })
         raise TypeError("Simulated type error for APM monitoring")
 
@@ -649,8 +658,12 @@ def api_stats():
             "/api/fast", "/api/slow", "/api/memory-intensive",
             "/api/cpu-intensive", "/api/error-random", "/api/external-call",
             "/api/database-simulation", "/api/chain-calls", "/api/crash-test",
-            "/api/security-error"
-        ]
+            "/api/security-error", "/api/security-input"
+        ],
+        "error_control_endpoints": [
+            "/api/set-error-rate", "/api/get-error-rate"
+        ],
+        "current_error_rate": f"{global_error_rate}%"
     })
 
 @app.route("/load-test")
@@ -724,6 +737,80 @@ def security_input():
         'message': 'Input received and logged for security analysis',
         'input_type': input_type,
         'input_length': len(user_input),
+        'request_id': request_counter,
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route("/api/set-error-rate", methods=['POST'])
+def set_error_rate():
+    """Set the global error rate for backend error simulation"""
+    global global_error_rate, request_counter
+    request_counter += 1
+    
+    try:
+        data = request.get_json()
+        new_error_rate = float(data.get('error_rate', 3.0))
+        
+        # Validate error rate is between 0 and 100
+        if 0 <= new_error_rate <= 100:
+            old_error_rate = global_error_rate
+            global_error_rate = new_error_rate
+            
+            app.logger.info("Global error rate updated", extra={
+                'endpoint': 'set_error_rate',
+                'old_error_rate': old_error_rate,
+                'new_error_rate': global_error_rate,
+                'request_id': request_counter,
+                'updated_by': request.remote_addr
+            })
+            
+            return jsonify({
+                'status': 'success',
+                'message': f'Error rate updated from {old_error_rate}% to {global_error_rate}%',
+                'old_error_rate': old_error_rate,
+                'new_error_rate': global_error_rate,
+                'request_id': request_counter,
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            app.logger.warning("Invalid error rate provided", extra={
+                'endpoint': 'set_error_rate',
+                'invalid_error_rate': new_error_rate,
+                'request_id': request_counter
+            })
+            return jsonify({
+                'status': 'error',
+                'message': 'Error rate must be between 0 and 100',
+                'provided_value': new_error_rate
+            }), 400
+            
+    except (TypeError, ValueError) as e:
+        app.logger.error("Error setting error rate", extra={
+            'endpoint': 'set_error_rate',
+            'error': str(e),
+            'request_id': request_counter
+        })
+        return jsonify({
+            'status': 'error',
+            'message': 'Invalid error rate format',
+            'error': str(e)
+        }), 400
+
+@app.route("/api/get-error-rate", methods=['GET'])
+def get_error_rate():
+    """Get the current global error rate"""
+    global global_error_rate, request_counter
+    request_counter += 1
+    
+    app.logger.info("Error rate requested", extra={
+        'endpoint': 'get_error_rate',
+        'current_error_rate': global_error_rate,
+        'request_id': request_counter
+    })
+    
+    return jsonify({
+        'status': 'success',
+        'current_error_rate': global_error_rate,
         'request_id': request_counter,
         'timestamp': datetime.now().isoformat()
     })

@@ -5,6 +5,9 @@ requests==2.31.0
 # Datadog APM
 ddtrace
 
+# Logging and utilities (built-in modules: json, logging, pathlib, uuid, traceback)
+# No additional dependencies needed for JSON logging
+
 # Development dependencies (optional)
 # pytest==7.4.0
 # pytest-flask==1.2.0

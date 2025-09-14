@@ -54,8 +54,11 @@ fi
 print_status "Setting up application directory..."
 mkdir -p $APP_DIR
 mkdir -p $LOG_DIR
+mkdir -p /var/log/flask-app
 chown $APP_USER:$APP_USER $APP_DIR
 chown $APP_USER:$APP_USER $LOG_DIR
+chown $APP_USER:$APP_USER /var/log/flask-app
+chmod 755 /var/log/flask-app
 
 print_status "Installing application..."
 # Copy application files (assuming we're running from the app directory)

@@ -658,6 +658,76 @@ def load_test():
     """Simple load testing interface"""
     return render_template('load_test.html')
 
+@app.route("/security-test")
+def security_test():
+    """Security input testing interface"""
+    app.logger.info("Security test page accessed", extra={
+        'endpoint': 'security_test',
+        'action': 'page_view',
+        'user_agent': request.headers.get('User-Agent', ''),
+        'remote_addr': request.remote_addr
+    })
+    return render_template('security_test.html')
+
+@app.route("/api/security-input", methods=['POST'])
+def security_input():
+    """Handle security test input and log for Datadog analysis"""
+    global request_counter
+    request_counter += 1
+    
+    # Get form data
+    user_input = request.form.get('user_input', '') if request.form else request.json.get('user_input', '')
+    input_type = request.form.get('input_type', 'general') if request.form else request.json.get('input_type', 'general')
+    
+    # Log the input for Datadog security monitoring
+    app.logger.info("Security test input received", extra={
+        'endpoint': 'security_input',
+        'request_id': request_counter,
+        'user_input': user_input[:500],  # Log first 500 chars
+        'input_type': input_type,
+        'input_length': len(user_input),
+        'security_test': True,
+        'remote_addr': request.remote_addr,
+        'user_agent': request.headers.get('User-Agent', ''),
+        'referer': request.headers.get('Referer', ''),
+        'content_type': request.content_type
+    })
+    
+    # Additional logging for different input types
+    if input_type == 'sql':
+        app.logger.info("SQL input test", extra={
+            'test_category': 'sql_injection',
+            'user_input': user_input[:200],
+            'request_id': request_counter
+        })
+    elif input_type == 'xss':
+        app.logger.info("XSS input test", extra={
+            'test_category': 'cross_site_scripting',
+            'user_input': user_input[:200],
+            'request_id': request_counter
+        })
+    elif input_type == 'command':
+        app.logger.info("Command injection input test", extra={
+            'test_category': 'command_injection',
+            'user_input': user_input[:200],
+            'request_id': request_counter
+        })
+    elif input_type == 'path':
+        app.logger.info("Path traversal input test", extra={
+            'test_category': 'path_traversal',
+            'user_input': user_input[:200],
+            'request_id': request_counter
+        })
+    
+    return jsonify({
+        'status': 'success',
+        'message': 'Input received and logged for security analysis',
+        'input_type': input_type,
+        'input_length': len(user_input),
+        'request_id': request_counter,
+        'timestamp': datetime.now().isoformat()
+    })
+
 @app.route("/api/crash-test")
 def crash_test():
     """Endpoint that intentionally crashes for error testing"""

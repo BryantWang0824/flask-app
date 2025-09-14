@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request, redirect, url_for, flash
+from flask import Flask, jsonify, render_template, request, redirect, url_for, flash, has_request_context
 import logging
 import logging.handlers
 import time
@@ -33,7 +33,7 @@ class JsonFormatter(logging.Formatter):
         }
         
         # Add request context if available
-        if hasattr(request, 'method'):
+        if has_request_context():
             log_entry.update({
                 'request_id': getattr(request, 'request_id', str(uuid.uuid4())),
                 'method': request.method,

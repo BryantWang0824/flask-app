@@ -7,71 +7,36 @@ import requests
 import json
 from datetime import datetime
 import os
-import traceback
 import uuid
 from pathlib import Path
 
+# Import python-json-logger
+from pythonjsonlogger import jsonlogger
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-
-# JSON Logging Configuration
-class JsonFormatter(logging.Formatter):
-    """Custom JSON formatter for structured logging"""
-    
-    def format(self, record):
-        # Create the base log entry
-        log_entry = {
-            'timestamp': datetime.fromtimestamp(record.created).isoformat(),
-            'level': record.levelname,
-            'logger': record.name,
-            'message': record.getMessage(),
-            'module': record.module,
-            'funcName': record.funcName,
-            'lineno': record.lineno,
-            'process': record.process,
-            'thread': record.thread
-        }
-        
-        # Add request context if available
-        if has_request_context():
-            log_entry.update({
-                'request_id': getattr(request, 'request_id', str(uuid.uuid4())),
-                'method': request.method,
-                'url': request.url,
-                'path': request.path,
-                'remote_addr': request.remote_addr,
-                'user_agent': request.headers.get('User-Agent', '')
-            })
-        
-        # Add exception info if present
-        if record.exc_info:
-            log_entry['exception'] = {
-                'type': record.exc_info[0].__name__,
-                'message': str(record.exc_info[1]),
-                'traceback': traceback.format_exception(*record.exc_info)
-            }
-        
-        # Add custom fields if present
-        if hasattr(record, 'custom_fields'):
-            log_entry.update(record.custom_fields)
-            
-        return json.dumps(log_entry)
 
 # Setup logging directory and file
 log_dir = Path('/var/log/flask-app')
 log_dir.mkdir(parents=True, exist_ok=True)
 log_file = log_dir / 'app.log'
 
-# Configure JSON file logging
+# Configure JSON file logging with python-json-logger
+# This formatter automatically works with Datadog's log injection
+json_formatter = jsonlogger.JsonFormatter(
+    fmt='%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d',
+    datefmt='%Y-%m-%dT%H:%M:%S'
+)
+
 file_handler = logging.handlers.RotatingFileHandler(
     log_file, 
     maxBytes=50*1024*1024,  # 50MB
     backupCount=5
 )
 file_handler.setLevel(logging.INFO)
-file_handler.setFormatter(JsonFormatter())
+file_handler.setFormatter(json_formatter)
 
-# Configure console logging (non-JSON for readability)
+# Configure console logging (non-JSON for readability during development)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 console_formatter = logging.Formatter(
@@ -89,17 +54,34 @@ app.logger.addHandler(console_handler)
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger().addHandler(file_handler)
 
+# Configure Datadog log injection (must be done before any logging)
+try:
+    from ddtrace.contrib.logging import patch as patch_logging
+    
+    # This enables automatic trace correlation in logs
+    # dd.trace_id and dd.span_id will be automatically added
+    patch_logging()
+    
+    app.logger.info("Datadog log correlation enabled", extra={
+        'dd_logging': 'enabled', 
+        'trace_injection': True,
+        'formatter': 'python-json-logger'
+    })
+except ImportError:
+    app.logger.warning("ddtrace not available - trace correlation disabled", extra={
+        'dd_logging': 'disabled', 
+        'trace_injection': False
+    })
+
 @app.before_request
 def before_request():
     """Add request ID and log request start"""
     request.request_id = str(uuid.uuid4())
     app.logger.info("Request started", extra={
-        'custom_fields': {
-            'request_id': request.request_id,
-            'method': request.method,
-            'path': request.path,
-            'remote_addr': request.remote_addr
-        }
+        'request_id': request.request_id,
+        'method': request.method,
+        'path': request.path,
+        'remote_addr': request.remote_addr
     })
 
 # Global counter for demonstration
@@ -112,17 +94,20 @@ def trigger_random_errors():
     # 3% chance of various application errors
     if error_chance < 0.01:
         app.logger.error("Simulated ValueError occurred", extra={
-            'custom_fields': {'error_type': 'ValueError', 'error_category': 'application_error'}
+            'error_type': 'ValueError', 
+            'error_category': 'application_error'
         })
         raise ValueError("Simulated application error for APM testing")
     elif error_chance < 0.02:
         app.logger.error("Simulated KeyError occurred", extra={
-            'custom_fields': {'error_type': 'KeyError', 'error_category': 'application_error'}
+            'error_type': 'KeyError', 
+            'error_category': 'application_error'
         })
         raise KeyError("missing_key_simulation")
     elif error_chance < 0.03:
         app.logger.error("Simulated TypeError occurred", extra={
-            'custom_fields': {'error_type': 'TypeError', 'error_category': 'application_error'}
+            'error_type': 'TypeError', 
+            'error_category': 'application_error'
         })
         raise TypeError("Simulated type error for APM monitoring")
 
@@ -130,7 +115,8 @@ def trigger_random_errors():
 def index():
     """Main dashboard with APM demonstration features"""
     app.logger.info("Dashboard accessed", extra={
-        'custom_fields': {'endpoint': 'dashboard', 'action': 'view'}
+        'endpoint': 'dashboard', 
+        'action': 'view'
     })
     
     # Random chance of error
@@ -737,14 +723,12 @@ def security_error():
 def after_request(response):
     """Log response details for APM monitoring"""
     app.logger.info("Request completed", extra={
-        'custom_fields': {
-            'request_id': getattr(request, 'request_id', 'unknown'),
-            'method': request.method,
-            'path': request.path,
-            'status_code': response.status_code,
-            'content_length': response.content_length,
-            'response_time_ms': 'calculated_by_apm'  # APM tools will calculate this
-        }
+        'request_id': getattr(request, 'request_id', 'unknown'),
+        'method': request.method,
+        'path': request.path,
+        'status_code': response.status_code,
+        'content_length': response.content_length,
+        'response_time_ms': 'calculated_by_apm'  # APM tools will calculate this
     })
     return response
 

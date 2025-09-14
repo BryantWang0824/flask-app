@@ -102,8 +102,14 @@
                         </h2>
                         <div id="xssExamples" class="accordion-collapse collapse">
                             <div class="accordion-body">
-                                <button class="btn btn-sm btn-outline-danger mb-2" onclick="setXSSExample('basic')">Basic XSS Alert</button><br>
-                                <button class="btn btn-sm btn-outline-danger mb-2" onclick="setXSSExample('image')">Image XSS</button><br>
+                                <button class="btn btn-sm btn-outline-danger mb-2" 
+                                        data-type="xss" 
+                                        data-payload="&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;"
+                                        onclick="setExampleFromData(this)">Basic XSS Alert</button><br>
+                                <button class="btn btn-sm btn-outline-danger mb-2" 
+                                        data-type="xss"
+                                        data-payload="&lt;img src=x onerror=alert(&quot;XSS&quot;)&gt;"
+                                        onclick="setExampleFromData(this)">Image XSS</button><br>
                                 <button class="btn btn-sm btn-outline-danger mb-2" onclick="setExample('xss', 'javascript:alert(document.cookie)')">Cookie Theft</button>
                             </div>
                         </div>
@@ -231,20 +237,19 @@ function setExample(type, payload) {
     }, 2000);
 }
 
-function setXSSExample(type) {
-    document.getElementById('inputType').value = 'xss';
+function setExampleFromData(button) {
+    const type = button.getAttribute('data-type');
+    const encodedPayload = button.getAttribute('data-payload');
     
-    let payload = '';
-    switch(type) {
-        case 'basic':
-            payload = '<script>alert("XSS")</script>';
-            break;
-        case 'image':
-            payload = '<img src=x onerror=alert("XSS")>';
-            break;
-    }
+    // Safely decode HTML entities
+    const decodedPayload = encodedPayload
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&');
     
-    document.getElementById('userInput').value = payload;
+    document.getElementById('inputType').value = type;
+    document.getElementById('userInput').value = decodedPayload;
     
     // Highlight the form
     const form = document.getElementById('securityTestForm');
